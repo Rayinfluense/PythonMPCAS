@@ -13,23 +13,31 @@ PARAM_TASK2b=6
 
 # Choose to control the game yourself ('human_player=1') to test the setups in the different tasks
 human_player=0
-#human_player=1
+human_player=1
 
 # Choose parameter sets for different tasks
-param_set=PARAM_TASK1a
-#param_set=PARAM_TASK1b
-#param_set=PARAM_TASK1c
-#param_set=PARAM_TASK1d
+#param_set=PARAM_TASK1a #Results are good some runs but often gets stuck somewhere.
+#param_set=PARAM_TASK1b #Results are more consistent but not necessarily much better
+#param_set=PARAM_TASK1c #Matrix is still very sparse so the results are not very consistent
+
+param_set=PARAM_TASK1d #With a larger game board the q_matrix would be so big it would be difficult to handle (run out of memory).
+#You could potentially use an expanding q_matrix, only adding new states as they are encountered, however this would make keeping track of
+#states more difficult since you can't rely on matrix indices, and it also wouldn't solve the problem of the matrix being extremely sparse,
+#making the training process unbearably slow.
+
 #param_set=PARAM_TASK2a
 #param_set=PARAM_TASK2b
 
 # Use files to evaluate strategy
 # If you change 'strategy_file' to the location of a file containing a stored Q-table or Q-network, you can evaluate the success of the found strategy
 if param_set==PARAM_TASK1a:
-    strategy_file=''
+    strategy_file='strategy_file.csv' #strategy_file.csv
+    strategy_file = ''
 elif param_set==PARAM_TASK1b:
     strategy_file=''
 elif param_set==PARAM_TASK1c:
+    strategy_file=''
+elif param_set==PARAM_TASK1d:
     strategy_file=''
 elif param_set==PARAM_TASK2a:
     strategy_file=''
@@ -69,9 +77,7 @@ if param_set==PARAM_TASK1a:
 
     alpha=0.2
     epsilon=0
-    epsilon = 0.001
     episode_count=1000
-    episode_count = 10000
 
     if (not human_player) or evaluate_agent:
         agent=agentClass.TQAgent(alpha,epsilon,episode_count)

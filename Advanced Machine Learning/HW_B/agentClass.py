@@ -3,6 +3,7 @@ import random
 import math
 import h5py
 import copy
+import matplotlib.pyplot as plt
 
 # This file provides the skeleton structure for the classes TQAgent and TDQNAgent to be completed by you, the student.
 # Locations starting with # TO BE COMPLETED BY STUDENT indicates missing code that should be written by you.
@@ -24,8 +25,8 @@ class TQAgent:
         n_tiles = len(gameboard.tiles)
         episode_count = self.episode_count
 
-        self.plot_rewards = []
-        self.plot_q_table = []
+        self.interval_rewards = []
+        self.interval_q_table = []
         self.q_table = np.zeros([2**(rows*columns)*n_tiles,n_tiles*4], dtype=np.float32) #Binary for tiles and multiplier for place piece number.
         self.q_table_hist = []
         self.reward = 0 #Reward for last move
@@ -46,7 +47,8 @@ class TQAgent:
         # 'self.episode_count' the total number of episodes in the training
 
     def fn_load_strategy(self,strategy_file):
-        pass
+        strategy_table = np.genfromtxt(strategy_file, delimiter=',')
+        self.q_table = strategy_table
         # TO BE COMPLETED BY STUDENT
         # Here you can load the Q-table (to Q-table of self) from the input parameter strategy_file (used to test how the agent plays)
 
@@ -89,12 +91,13 @@ class TQAgent:
             if random.random() < self.epsilon:
                 self.action_index = random.randint(0, self.gameboard.N_col*4 - 1)
             else:
-                q_state_vec = copy.deepcopy(self.q_table[self.q_state_index, :])
+                #q_state_vec = copy.deepcopy(self.q_table[self.q_state_index, :])
+                q_state_vec = self.q_table[self.q_state_index,:]
 
                 for i in illegal_moves_indices:
-                    q_state_vec[i] = -102 #Remove illegal moves #THIS NEEDS TO BE COPIED INSTEAD
+                    q_state_vec[i] = -float('inf') #Remove illegal moves
 
-                max_value = -101 #Less than instant loss
+                max_value = -float('inf') #Less than instant loss
                 candidates = []
                 action_index = 0
                 for elem in q_state_vec:
@@ -146,15 +149,22 @@ class TQAgent:
         if self.gameboard.gameover:
             self.episode+=1
             if self.episode%100==0:
+                self.interval_rewards.append(np.sum(self.reward_tots[range(self.episode-100,self.episode)])/100)
                 print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)])),')')
             if self.episode%1000==0:
                 saveEpisodes=[1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
                 if self.episode in saveEpisodes:
-                    self.plot_rewards.append(self.reward)
-                    self.plot_q_table.append(self.q_table)
+                    self.interval_q_table.append(self.q_table)
                     # TO BE COMPLETED BY STUDENT
                     # Here you can save the rewards and the Q-table to data files for plotting of the rewards and the Q-table can be used to test how the agent plays
             if self.episode>=self.episode_count:
+                strategy_file = self.q_table
+                np.savetxt("strategy_file.csv", strategy_file, delimiter=",")
+                x = list(range(0,self.episode_count,100))
+                plt.plot(x,self.interval_rewards)
+                plt.xlabel("Episode")
+                plt.ylabel("Reward")
+                plt.show()
                 raise SystemExit(0)
             else:
                 self.gameboard.fn_restart()
