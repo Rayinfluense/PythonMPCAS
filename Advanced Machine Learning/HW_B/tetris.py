@@ -13,7 +13,7 @@ PARAM_TASK2b=6
 
 # Choose to control the game yourself ('human_player=1') to test the setups in the different tasks
 human_player=0
-human_player=1
+#human_player=1
 
 # Choose parameter sets for different tasks
 param_set=PARAM_TASK1a
@@ -69,7 +69,9 @@ if param_set==PARAM_TASK1a:
 
     alpha=0.2
     epsilon=0
+    epsilon = 0.001
     episode_count=1000
+    episode_count = 10000
 
     if (not human_player) or evaluate_agent:
         agent=agentClass.TQAgent(alpha,epsilon,episode_count)

@@ -2,6 +2,7 @@ import numpy as np
 import random
 import math
 import h5py
+import copy
 
 # This file provides the skeleton structure for the classes TQAgent and TDQNAgent to be completed by you, the student.
 # Locations starting with # TO BE COMPLETED BY STUDENT indicates missing code that should be written by you.
@@ -17,10 +18,21 @@ class TQAgent:
 
     def fn_init(self,gameboard):
         self.gameboard=gameboard
-        state = np.full(gameboard.N_row,gameboard.N_col,False) #Empty game board.
 
-        exp_reward = np.zeros(gameboard.N_row,gameboard.N_col) #
-        self.q_table = [state,] #Initially only has one
+        rows = gameboard.N_row
+        columns = gameboard.N_col
+        n_tiles = len(gameboard.tiles)
+        episode_count = self.episode_count
+
+        self.plot_rewards = []
+        self.plot_q_table = []
+        self.q_table = np.zeros([2**(rows*columns)*n_tiles,n_tiles*4], dtype=np.float32) #Binary for tiles and multiplier for place piece number.
+        self.q_table_hist = []
+        self.reward = 0 #Reward for last move
+        self.reward_tots = np.zeros([episode_count]) #List of full-game rewards for each game played
+        self.q_state_index = 0 #Index in q_table for the state we're currently in
+        self.old_state_index = 0 #Index for previous state.
+
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
@@ -39,7 +51,21 @@ class TQAgent:
         # Here you can load the Q-table (to Q-table of self) from the input parameter strategy_file (used to test how the agent plays)
 
     def fn_read_state(self):
-        pass
+        board_mat = self.gameboard.board
+        n_col = self.gameboard.N_col
+        n_row = self.gameboard.N_row
+        binary_list = np.zeros(n_col*n_row)
+        for i in range(n_col):
+            for j in range(n_row):
+                if board_mat[i,j] == 1:
+                    binary_list[i+4*j] = 1
+
+        self.q_state_index = 0
+        for i in range(len(binary_list)):
+            self.q_state_index += binary_list[i] * (2 ** (i))
+
+        self.q_state_index += (2 ** (n_row * n_col)) * (self.gameboard.cur_tile_type)
+        self.q_state_index = round(self.q_state_index)
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
@@ -54,10 +80,43 @@ class TQAgent:
         # 'self.gameboard.cur_tile_type' identifier of the current tile that should be placed on the game board (integer between 0 and len(self.gameboard.tiles))
 
     def fn_select_action(self):
-        pass
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
+        select_move = True
+        illegal_moves_indices = []
+        while select_move:
+            if random.random() < self.epsilon:
+                self.action_index = random.randint(0, self.gameboard.N_col*4 - 1)
+            else:
+                q_state_vec = copy.deepcopy(self.q_table[self.q_state_index, :])
+
+                for i in illegal_moves_indices:
+                    q_state_vec[i] = -102 #Remove illegal moves #THIS NEEDS TO BE COPIED INSTEAD
+
+                max_value = -101 #Less than instant loss
+                candidates = []
+                action_index = 0
+                for elem in q_state_vec:
+                    if elem > max_value:
+                        max_value = elem
+                        candidates = [action_index]
+                    elif elem == max_value:
+                        max_value = elem
+                        candidates.append(action_index)
+                    action_index += 1
+                #print(q_state_vec)
+                self.action_index = random.choice(candidates)
+
+            tile_x = math.floor(self.action_index / self.gameboard.N_col)
+            tile_orientation = self.action_index % 4
+            select_move_int = self.gameboard.fn_move(tile_x,tile_orientation)
+            if select_move_int == 0:
+                select_move = False
+            else:
+                illegal_moves_indices.append(self.action_index)
+                select_move = True
+
         # Choose and execute an action, based on the Q-table or random if epsilon greedy
         # This function should not return a value, store the action as an attribute of self and exectute the action by moving the tile to the desired position and orientation
 
@@ -72,13 +131,14 @@ class TQAgent:
         # You can use this function to map out which actions are valid or not
     
     def fn_reinforce(self,old_state,reward):
-        pass
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
         # Update the Q table using state and action stored as attributes in self and using function arguments for the old state and the reward
         # This function should not return a value, the Q table is stored as an attribute of self
-
+        alpha = self.alpha
+        q_index = self.q_state_index
+        self.q_table[old_state,self.action_index] += alpha*(reward + np.max(self.q_table[q_index,:]) - self.q_table[old_state,self.action_index])
         # Useful variables: 
         # 'self.alpha' learning rate
 
@@ -90,7 +150,8 @@ class TQAgent:
             if self.episode%1000==0:
                 saveEpisodes=[1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
                 if self.episode in saveEpisodes:
-                    pass
+                    self.plot_rewards.append(self.reward)
+                    self.plot_q_table.append(self.q_table)
                     # TO BE COMPLETED BY STUDENT
                     # Here you can save the rewards and the Q-table to data files for plotting of the rewards and the Q-table can be used to test how the agent plays
             if self.episode>=self.episode_count:
@@ -102,16 +163,16 @@ class TQAgent:
             self.fn_select_action()
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later passed to fn_reinforce()
-
+            old_state = self.q_state_index
             # Drop the tile on the game board
-            reward=self.gameboard.fn_drop()
+            self.reward=self.gameboard.fn_drop()
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to add the current reward to the total reward for the current episode, so you can save it to disk later
-
+            self.reward_tots[self.episode] += self.reward
             # Read the new state
             self.fn_read_state()
             # Update the Q-table using the old state and the reward (the new state and the taken action should be stored as attributes in self)
-            self.fn_reinforce(old_state,reward)
+            self.fn_reinforce(old_state,self.reward)
 
 
 class TDQNAgent:
