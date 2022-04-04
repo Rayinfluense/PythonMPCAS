@@ -1,9 +1,15 @@
+from collections import deque
+
 import numpy as np
 import random
 import math
 import h5py
 import copy
 import matplotlib.pyplot as plt
+from qNet import QNet
+import torch.optim as optim
+import torch.nn as nn
+import torch
 
 # This file provides the skeleton structure for the classes TQAgent and TDQNAgent to be completed by you, the student.
 # Locations starting with # TO BE COMPLETED BY STUDENT indicates missing code that should be written by you.
@@ -29,9 +35,9 @@ class TQAgent:
         self.interval_q_table = []
         self.q_table = np.zeros([2**(rows*columns)*n_tiles,n_tiles*4], dtype=np.float32) #Binary for tiles and multiplier for place piece number.
         self.q_table_hist = []
+        self.q_state_index = 0 #Index in q_table for the state we're currently in
         self.reward = 0 #Reward for last move
         self.reward_tots = np.zeros([episode_count]) #List of full-game rewards for each game played
-        self.q_state_index = 0 #Index in q_table for the state we're currently in
         self.old_state_index = 0 #Index for previous state.
 
         # TO BE COMPLETED BY STUDENT
@@ -198,6 +204,20 @@ class TDQNAgent:
         self.episode=0
         self.episode_count=episode_count
 
+    class ReplayMemory:
+
+        def __init__(self, capacity):
+            self.memory = deque([], maxlen = capacity)
+
+        def push(self, replay): #Replay will be tuple (quadruple) of (state, action, reward, new state)
+            self.memory.append(replay)
+
+        def sample(self, batch_size):
+            return random.sample(self.memory, batch_size)
+
+        def __len__(self):
+            return len(self.memory)
+
     def fn_init(self,gameboard):
         self.gameboard=gameboard
         # TO BE COMPLETED BY STUDENT
@@ -206,6 +226,23 @@ class TDQNAgent:
         # In this function you could set up and initialize the states, actions, the Q-networks (one for calculating actions and one target network), experience replay buffer and storage for the rewards
         # You can use any framework for constructing the networks, for example pytorch or tensorflow
         # This function should not return a value, store Q network etc as attributes of self
+        hidden_layer_width = 64
+
+        self.episode_number = 0
+        #The net will want a vector as input.
+        self.old_board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 1], dtype=np.float32))
+        self.board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 1], dtype=np.float32)) #List of all tile position states.
+        self.action_index = 0
+
+        self.net = QNet(self.gameboard, hidden_layer_width)
+        self.netHat = QNet(self.gameboard, hidden_layer_width)
+
+        self.experience_replay = TDQNAgent.ReplayMemory(self.replay_buffer_size) #Use self.experience_replay.push(replay) to push a quadruplet of replay.
+
+        self.reward = 0 #Reward for last move
+        self.reward_tots = np.zeros([self.episode_count]) #List of full-game rewards for each game played
+        self.optimizer = optim.Adam(self.net.parameters(), lr = self.alpha) #Using the Adam optimizer
+        self.criterion = nn.MSELoss()
 
         # Useful variables: 
         # 'gameboard.N_row' number of rows in gameboard
@@ -221,27 +258,65 @@ class TDQNAgent:
         # Here you can load the Q-network (to Q-network of self) from the strategy_file
 
     def fn_read_state(self):
-        pass
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
         # In this function you could calculate the current state of the gane board
         # You can for example represent the state as a copy of the game board and the identifier of the current tile
         # This function should not return a value, store the state as an attribute of self
+        self.old_board_state = self.board_state
+        flattened_state = np.matrix.flatten(self.gameboard.board)
 
-        # Useful variables: 
+        self.board_state = torch.from_numpy(np.append(flattened_state, self.gameboard.cur_tile_type))  #Add the tile type at the end to extend the state
+        self.board_state = self.board_state.to(torch.float32)
+        # Useful variables:
         # 'self.gameboard.N_row' number of rows in gameboard
         # 'self.gameboard.N_col' number of columns in gameboard
         # 'self.gameboard.board[index_row,index_col]' table indicating if row 'index_row' and column 'index_col' is occupied (+1) or free (-1)
         # 'self.gameboard.cur_tile_type' identifier of the current tile that should be placed on the game board (integer between 0 and len(self.gameboard.tiles))
 
     def fn_select_action(self):
-        pass
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
         # Choose and execute an action, based on the output of the Q-network for the current state, or random if epsilon greedy
         # This function should not return a value, store the action as an attribute of self and exectute the action by moving the tile to the desired position and orientation
+
+        select_move = True
+        illegal_moves_indices = []
+        while select_move:
+            if random.random() < max(self.epsilon, 1 - self.episode/self.epsilon_scale):
+                self.action_index = random.randint(0, self.gameboard.N_col * 4 - 1)
+            else:
+                q_state_vec = self.net(self.board_state) #Outputs of neural network
+                q_state_vec = q_state_vec.detach().cpu().numpy()
+
+                for i in illegal_moves_indices:
+                    q_state_vec[i] = -float('inf')  #Doesn't permanently fix illegal moves :/
+
+                max_value = -float('inf')  # Less than instant loss
+                candidates = []
+                action_index = 0
+                for elem in q_state_vec:
+                    if elem > max_value:
+                        max_value = elem
+                        candidates = [action_index]
+                    elif elem == max_value:
+                        max_value = elem
+                        candidates.append(action_index)
+                    action_index += 1
+                # print(q_state_vec)
+                self.action_index = random.choice(candidates)
+
+            tile_x = math.floor(self.action_index / self.gameboard.N_col)
+            tile_orientation = self.action_index % 4
+            select_move_int = self.gameboard.fn_move(tile_x, tile_orientation)
+            if select_move_int == 0:
+                select_move = False
+            else:
+                illegal_moves_indices.append(self.action_index) #Doesn't permanently fix illegal moves :/
+                select_move = True
+
 
         # Useful variables: 
         # 'self.epsilon' parameter epsilon in epsilon-greedy policy
@@ -254,12 +329,28 @@ class TDQNAgent:
         # The function returns 1 if the action is not valid and 0 otherwise
         # You can use this function to map out which actions are valid or not
 
-    def fn_reinforce(self,batch):
-        pass
+    def fn_reinforce(self):
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
         # Update the Q network using a batch of quadruplets (old state, last action, last reward, new state)
+
+        #Calculate loss according to replay and adjust weights according to Adam scheme.
+        samples = self.experience_replay.sample(self.batch_size)
+
+        for replay in samples:
+            #Perform backprop and adjustment
+            self.optimizer.zero_grad()
+            old_state = replay[0] #Comes as tensor which is fine
+            action = replay[1] #Number
+            reward = replay[2] #Always number
+            new_state = replay[3]
+            output = self.net(old_state)[action] #Comes as tensor
+            y = reward + max(self.netHat(new_state))
+            loss = self.criterion(output, y)
+            loss.backward()
+            self.optimizer.step()
+
         # Calculate the loss function by first, for each old state, use the Q-network to calculate the values Q(s_old,a), i.e. the estimate of the future reward for all actions a
         # Then repeat for the target network to calculate the value \hat Q(s_new,a) of the new state (use \hat Q=0 if the new state is terminal)
         # This function should not return a value, the Q table is stored as an attribute of self
@@ -281,8 +372,8 @@ class TDQNAgent:
             if self.episode>=self.episode_count:
                 raise SystemExit(0)
             else:
-                if (len(self.exp_buffer) >= self.replay_buffer_size) and ((self.episode % self.sync_target_episode_count)==0):
-                    pass
+                if (len(self.experience_replay) >= self.replay_buffer_size) and ((self.episode % self.sync_target_episode_count)==0):
+                    self.netHat = copy.deepcopy(self.net)
                     # TO BE COMPLETED BY STUDENT
                     # Here you should write line(s) to copy the current network to the target network
                 self.gameboard.fn_restart()
@@ -293,21 +384,23 @@ class TDQNAgent:
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later stored in the ecperience replay buffer
 
             # Drop the tile on the game board
-            reward=self.gameboard.fn_drop()
-
+            self.reward=self.gameboard.fn_drop()
+            self.reward_tots[self.episode] += self.reward
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to add the current reward to the total reward for the current episode, so you can save it to disk later
 
             # Read the new state
             self.fn_read_state()
-
+            replay = (self.old_board_state, self.action_index, self.reward, self.board_state)
+            self.experience_replay.push(replay)
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to store the state in the experience replay buffer
 
-            if len(self.exp_buffer) >= self.replay_buffer_size:
+            if len(self.experience_replay) >= self.replay_buffer_size:
                 # TO BE COMPLETED BY STUDENT
-                # Here you should write line(s) to create a variable 'batch' containing 'self.batch_size' quadruplets 
-                self.fn_reinforce(batch)
+                # Here you should write line(s) to create a variable 'batch' containing 'self.batch_size' quadruplets
+                self.fn_reinforce()
+
 
 
 class THumanAgent:
