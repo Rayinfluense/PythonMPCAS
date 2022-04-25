@@ -288,8 +288,9 @@ class TDQNAgent:
             if random.random() < max(self.epsilon, 1 - self.episode/self.epsilon_scale):
                 self.action_index = random.randint(0, self.gameboard.N_col * 4 - 1)
             else:
-                q_state_vec = self.net(self.board_state) #Outputs of neural network
+                q_state_vec = self.net.forward(self.board_state) #Outputs of neural network
                 q_state_vec = q_state_vec.detach().cpu().numpy()
+                print("Ouptut was" ,q_state_vec)
 
                 for i in illegal_moves_indices:
                     q_state_vec[i] = -float('inf')  #Doesn't permanently fix illegal moves :/
@@ -346,8 +347,12 @@ class TDQNAgent:
             reward = replay[2] #Always number
             new_state = replay[3]
             output = self.net(old_state)[action] #Comes as tensor
+            print("Selected output ", output)
             y = reward + max(self.netHat(new_state))
+            print("r = ", reward)
+            print("y = ", y)
             loss = self.criterion(output, y)
+            print("loss is ", loss)
             loss.backward()
             self.optimizer.step()
 
@@ -362,6 +367,9 @@ class TDQNAgent:
         if self.gameboard.gameover:
             self.episode+=1
             if self.episode%100==0:
+                #for param in self.net.parameters():
+                #    print(param.data)
+                #print(list(self.net.parameters()))
                 print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)])),')')
             if self.episode%1000==0:
                 saveEpisodes=[1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
