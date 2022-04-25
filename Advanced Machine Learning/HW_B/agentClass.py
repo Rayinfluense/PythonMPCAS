@@ -228,6 +228,7 @@ class TDQNAgent:
         # This function should not return a value, store Q network etc as attributes of self
         hidden_layer_width = 64
 
+        self.interval_rewards = []
         self.episode_number = 0
         #The net will want a vector as input.
         self.old_board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 1], dtype=np.float32))
@@ -253,7 +254,9 @@ class TDQNAgent:
         # 'self.replay_buffer_size' the number of quadruplets stored in the experience replay buffer
 
     def fn_load_strategy(self,strategy_file):
-        pass
+        #CHANGE TO NEURAL NETWORK EQUILVALENT
+        strategy_table = np.genfromtxt(strategy_file, delimiter=',')
+        self.net = strategy_table
         # TO BE COMPLETED BY STUDENT
         # Here you can load the Q-network (to Q-network of self) from the strategy_file
 
@@ -306,7 +309,7 @@ class TDQNAgent:
                         max_value = elem
                         candidates.append(action_index)
                     action_index += 1
-                # print(q_state_vec)
+                #print(q_state_vec)
                 self.action_index = random.choice(candidates)
 
             tile_x = math.floor(self.action_index / self.gameboard.N_col)
@@ -368,8 +371,9 @@ class TDQNAgent:
             self.episode+=1
             if self.episode%100==0:
                 #for param in self.net.parameters():
-                #    print(param.data)
+                #    print(param.data.detach().numpy())
                 #print(list(self.net.parameters()))
+                self.interval_rewards.append(np.sum(self.reward_tots[range(self.episode-100,self.episode)])/100)
                 print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)])),')')
             if self.episode%1000==0:
                 saveEpisodes=[1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
@@ -378,6 +382,13 @@ class TDQNAgent:
                     # TO BE COMPLETED BY STUDENT
                     # Here you can save the rewards and the Q-network to data files
             if self.episode>=self.episode_count:
+                strategy_file = self.net.state_dict()
+                torch.save(strategy_file, "strategy_file.pt")
+                x = list(range(0, self.episode_count, 100))
+                plt.plot(x, self.interval_rewards)
+                plt.xlabel("Episode")
+                plt.ylabel("Reward")
+                plt.show()
                 raise SystemExit(0)
             else:
                 if (len(self.experience_replay) >= self.replay_buffer_size) and ((self.episode % self.sync_target_episode_count)==0):
