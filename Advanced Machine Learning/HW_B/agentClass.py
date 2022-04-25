@@ -264,7 +264,7 @@ class TDQNAgent:
         # In this function you could calculate the current state of the gane board
         # You can for example represent the state as a copy of the game board and the identifier of the current tile
         # This function should not return a value, store the state as an attribute of self
-        self.old_board_state = self.board_state
+        self.old_board_state = copy.deepcopy(self.board_state)
         flattened_state = np.matrix.flatten(self.gameboard.board)
 
         self.board_state = torch.from_numpy(np.append(flattened_state, self.gameboard.cur_tile_type))  #Add the tile type at the end to extend the state
