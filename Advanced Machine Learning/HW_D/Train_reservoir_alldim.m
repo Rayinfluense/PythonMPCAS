@@ -3,8 +3,8 @@ clc
 
 XFull = Generate_Lorentz();
 %XFull = XFull(2,:);
-trainEnd = 0.6;
-testEnd = 0.9;
+trainEnd = 0.5;
+testEnd = 0.8;
 
 n = size(XFull,1); %Number of input neurons
 N = 500; %Number of reservoir neurons
@@ -55,10 +55,13 @@ for t = 2:length(prediction)
    prediction(:,t) = O;
 end
 
-prediction = prediction(2,:);
-csvwrite('prediction.csv', prediction);
+%prediction = prediction(2,:);
+csvwrite('prediction.csv', prediction(2,:));
 
-plot(prediction)
+plot3(prediction(1,:),prediction(2,:),prediction(3,:))
 hold on
 
-plot(XFull(2,floor(length(XFull)*testEnd):end))
+plot3(XFull(1,floor(length(XFull)*testEnd):end),XFull(2,floor(length(XFull)*testEnd):end),XFull(3,floor(length(XFull)*testEnd):end))
+xlabel('x')
+ylabel('y')
+zlabel('z')

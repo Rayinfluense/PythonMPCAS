@@ -54,6 +54,6 @@ for t = 1:500
 end
 
 predictionY = prediction(2,:);
-csvwrite('prediction.csv', predictionY);
-%plot3(prediction(1,:),prediction(2,:),prediction(3,:))
+%csvwrite('prediction.csv', predictionY);
+plot3(prediction(1,:),prediction(2,:),prediction(3,:))
 
