@@ -4,7 +4,7 @@ Predict(1,0.06,1)
 %%
 ifPlot = 0;
 %Seems to work well at maxSing = 0.05.
-nDimensions = 3;
+nDimensions = 1;
 maxSingVec = 0.03:0.001:0.1;
 repeats = 15;
 oneDimRes = zeros(repeats,length(maxSingVec));
@@ -28,7 +28,7 @@ function performance = Predict(nDimensions, maxSing, ifPlot)
     %nDimensions = 1; %1 or 3 only.
     XFull = Generate_Lorentz();
     if nDimensions == 1
-        XFull = XFull(2,:);
+        XFull = XFull(1,:);
     end
     setLength = size(XFull,2);
     trainRange = 1:floor(setLength*0.82);
@@ -69,32 +69,32 @@ function performance = Predict(nDimensions, maxSing, ifPlot)
     w_out = [trainingSet(:,2:end),testSet(:,1)]*transpose(X)*(X*transpose(X) + k.*I)^(-1);
 
     T = length(testSet);
-    Y = zeros(n, T);
+    O = zeros(n, T);
 
     u = trainingSet(:,end);
 
     for t = 1:T
        x = (1-a)*x + a * tanh(w_in*[1;u] + w_res*x);
        u = w_out*[1;u;x];
-       Y(:,t) = u;
+       O(:,t) = u;
     end
 
     if ifPlot
         if nDimensions == 3
             plot3(testSet(1,1),testSet(2,1),testSet(3,1),'o','MarkerSize',10)
             hold on
-            plot3(Y(1,:),Y(2,:),Y(3,:))
+            plot3(O(1,:),O(2,:),O(3,:))
             hold on
             plot3(testSet(1,:),testSet(2,:),testSet(3,:),'--','Color','black')
             legend("Start","Prediction","Actual");
         end
 
         if nDimensions == 1
-            plot(Y)
+            plot(O)
             hold on
             plot(testSet)
             legend("Prediction","Actual");
         end
     end
-    performance = EvaluatePerformance(testSet,Y);
+    performance = EvaluatePerformance(testSet,O);
 end
