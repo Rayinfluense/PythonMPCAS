@@ -1,9 +1,9 @@
-function a = Generate_Lorentz()
+function a = Generate_Lorentz(endTime)
     sigma = 10;
     r = 28;
     b = 8/3;
     dt = 0.02;
-    endTime = 100;
+    %endTime = 100;
 
     x1 = normrnd(0,0.1);
     x2 = normrnd(0,0.1);

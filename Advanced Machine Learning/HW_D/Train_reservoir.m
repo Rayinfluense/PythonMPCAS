@@ -33,7 +33,7 @@ end
 I = eye(N);
 w_out = X*transpose(R)*(R*transpose(R) + k.*I)^(-1);
 
-%%
+
 
 r = zeros(N,1); %Reset r.
 

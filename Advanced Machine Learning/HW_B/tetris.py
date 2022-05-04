@@ -35,7 +35,7 @@ if param_set==PARAM_TASK1a:
     strategy_file='strategy_file.csv' #strategy_file.csv
     strategy_file = ''
 elif param_set==PARAM_TASK1b:
-    strategy_file=''
+    strategy_file='strategy_file.csv'
 elif param_set==PARAM_TASK1c:
     strategy_file=''
 elif param_set==PARAM_TASK1d:

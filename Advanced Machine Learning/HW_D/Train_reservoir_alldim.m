@@ -1,7 +1,7 @@
 clear all
 clc
 
-XFull = Generate_Lorentz();
+XFull = Generate_Lorentz(40);
 %XFull = XFull(2,:);
 trainEnd = 0.5;
 testEnd = 0.8;
@@ -33,7 +33,7 @@ end
 I = eye(N);
 w_out = X*transpose(R)*(R*transpose(R) + k.*I)^(-1);
 
-%%
+
 
 r = zeros(N,1); %Reset r.
 
@@ -57,7 +57,11 @@ end
 
 %prediction = prediction(2,:);
 csvwrite('prediction.csv', prediction(2,:));
+plot(prediction(2,:))
+hold on
+plot(XFull(2,floor(length(XFull)*testEnd):end))
 
+%%
 plot3(prediction(1,:),prediction(2,:),prediction(3,:))
 hold on
 

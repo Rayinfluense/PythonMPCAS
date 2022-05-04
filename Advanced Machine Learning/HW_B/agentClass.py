@@ -168,6 +168,11 @@ class TQAgent:
                 np.savetxt("strategy_file.csv", strategy_file, delimiter=",")
                 x = list(range(0,self.episode_count,100))
                 plt.plot(x,self.interval_rewards)
+                reward_best_interval = np.zeros(len(x))
+                for i in range(len(x)):
+                    reward_best_interval[i] = max(self.reward_tots[range(x[i], x[i] + 100)])
+                #print(reward_best_interval)
+                plt.plot(x, reward_best_interval)
                 plt.xlabel("Episode")
                 plt.ylabel("Reward")
                 plt.show()
@@ -231,8 +236,8 @@ class TDQNAgent:
         self.interval_rewards = []
         self.episode_number = 0
         #The net will want a vector as input.
-        self.old_board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 1], dtype=np.float32))
-        self.board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 1], dtype=np.float32)) #List of all tile position states.
+        self.old_board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 2], dtype=np.float32))
+        self.board_state = torch.from_numpy(np.zeros([self.gameboard.N_col * self.gameboard.N_row + 2], dtype=np.float32)) #List of all tile position states.
         self.action_index = 0
 
         self.net = QNet(self.gameboard, hidden_layer_width)
@@ -269,8 +274,9 @@ class TDQNAgent:
         # This function should not return a value, store the state as an attribute of self
         self.old_board_state = copy.deepcopy(self.board_state)
         flattened_state = np.matrix.flatten(self.gameboard.board)
-
-        self.board_state = torch.from_numpy(np.append(flattened_state, self.gameboard.cur_tile_type))  #Add the tile type at the end to extend the state
+        binary_tile = np.binary_repr(self.gameboard.cur_tile_type,2)
+        self.board_state = torch.from_numpy(np.append(flattened_state, binary_tile[0])) #Add the tile type at the end to extend the state
+        self.board_state = torch.from_numpy(np.append(self.board_state, binary_tile[1]))
         self.board_state = self.board_state.to(torch.float32)
         # Useful variables:
         # 'self.gameboard.N_row' number of rows in gameboard
@@ -293,7 +299,7 @@ class TDQNAgent:
             else:
                 q_state_vec = self.net.forward(self.board_state) #Outputs of neural network
                 q_state_vec = q_state_vec.detach().cpu().numpy()
-                print("Ouptut was" ,q_state_vec)
+                #print("Ouptut was" ,q_state_vec)
 
                 for i in illegal_moves_indices:
                     q_state_vec[i] = -float('inf')  #Doesn't permanently fix illegal moves :/
@@ -316,6 +322,7 @@ class TDQNAgent:
             tile_orientation = self.action_index % 4
             select_move_int = self.gameboard.fn_move(tile_x, tile_orientation)
             if select_move_int == 0:
+                #print(self.action_index)
                 select_move = False
             else:
                 illegal_moves_indices.append(self.action_index) #Doesn't permanently fix illegal moves :/
@@ -349,13 +356,20 @@ class TDQNAgent:
             action = replay[1] #Number
             reward = replay[2] #Always number
             new_state = replay[3]
+            gameover = replay[4]
             output = self.net(old_state)[action] #Comes as tensor
-            print("Selected output ", output)
-            y = reward + max(self.netHat(new_state))
-            print("r = ", reward)
-            print("y = ", y)
+            #print("Selected output ", output)
+            if gameover:
+                y = reward + torch.max(self.netHat(new_state)) - torch.max(self.netHat(new_state)).detach()
+                #print("gameover y is: ", y)
+            else:
+                y = reward + torch.max(self.netHat(new_state))
+                #print("Not gameover y is: ", reward , " + ", max(self.netHat(new_state)) , " = ", y)
+
+            #print("r = ", reward)
+            #print("y = ", y)
             loss = self.criterion(output, y)
-            print("loss is ", loss)
+            #print("loss is ", loss)
             loss.backward()
             self.optimizer.step()
 
@@ -386,6 +400,11 @@ class TDQNAgent:
                 torch.save(strategy_file, "strategy_file.pt")
                 x = list(range(0, self.episode_count, 100))
                 plt.plot(x, self.interval_rewards)
+                reward_best_interval = np.zeros(len(x))
+                for i in range(len(x)):
+                    reward_best_interval[i] = max(self.reward_tots[range(x[i], x[i] + 100)])
+                #print(reward_best_interval)
+                plt.plot(x, reward_best_interval)
                 plt.xlabel("Episode")
                 plt.ylabel("Reward")
                 plt.show()
@@ -410,7 +429,7 @@ class TDQNAgent:
 
             # Read the new state
             self.fn_read_state()
-            replay = (self.old_board_state, self.action_index, self.reward, self.board_state)
+            replay = (self.old_board_state, self.action_index, self.reward, self.board_state, self.gameboard.gameover)
             self.experience_replay.push(replay)
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to store the state in the experience replay buffer

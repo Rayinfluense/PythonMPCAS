@@ -18,7 +18,7 @@ class QNet(nn.Module):
     def forward(self, x):
         # Defines how to feed input through the network, including activation functions.
         #x = x.to(torch.float32)
-        x = self.fc1(x)
+        x = F.relu(self.fc1(x))
 
         x = F.relu(self.fc2(x))
 
