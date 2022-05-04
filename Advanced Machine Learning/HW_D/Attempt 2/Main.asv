@@ -1,28 +1,22 @@
 clear all
 clc
-Predict(1,0.06,1)
-%%
+
 ifPlot = 0;
 %Seems to work well at maxSing = 0.05.
-nDimensions = 3;
-maxSingVec = 0.03:0.001:0.1;
-repeats = 15;
-oneDimRes = zeros(repeats,length(maxSingVec));
 
+nDimensions = 1;
+maxSingVec = 0.02:0.01:0.1;
+loopIndex = 1:length(maxSingVec)
+oneDimRes = zeros(1,length(maxSingVec));
 
-parfor i = 1:length(maxSingVec)
-    for repeat = 1:repeats
-        maxSing = maxSingVec(i);
-        disp(maxSing)
-        oneDimRes(repeat, i) = Predict(nDimensions,maxSing,ifPlot);
-    end
+parfor maxSing = maxSingVec
+    disp(maxSing)
+    oneDimRes(end+1) = Predict(nDimensions,maxSing,ifPlot);
 end
 
-
-plot(maxSingVec, sum(oneDimRes)/repeats)
+plot(maxSingVec, oneDimRes)
 xlabel("Maximal singular value in w_{res}")
 ylabel("Time steps predicted")
-title(num2str(nDimensions), " dimensions")
 
 function performance = Predict(nDimensions, maxSing, ifPlot)
     %nDimensions = 1; %1 or 3 only.
