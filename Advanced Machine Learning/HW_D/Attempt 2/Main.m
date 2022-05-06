@@ -1,6 +1,18 @@
 clear all
 clc
-Predict(1,0.06,1)
+predictionPerformance = Predict(1,0.06,1); %0.06
+disp("The network predicted for " + num2str(predictionPerformance) + " time steps.")
+%Noted about spectral radius but I expect the maximal singular value to
+%reflect the same properties: A larger maximal singular value makes the
+%network value long past history more compared to a smaller maximal
+%singular value. In general we see that in one dimension it is more
+%important to have a large enough maximal singular value, while in three
+%dimensions it is not as stingy, and a lower value works better. 
+
+%My observation is that predicting only one dimension is more difficult
+%compared to predicting all dimensions, so for one dimension it may be more
+%essential to "memorize" the pattern on a macroscopic scale rather than
+%"learn" how the differential equations operate in all its dimensions.
 %%
 ifPlot = 0;
 %Seems to work well at maxSing = 0.05.
@@ -86,6 +98,23 @@ function performance = Predict(nDimensions, maxSing, ifPlot)
             plot3(O(1,:),O(2,:),O(3,:))
             hold on
             plot3(testSet(1,:),testSet(2,:),testSet(3,:),'--','Color','black')
+            legend("Start","Prediction","Actual");
+            
+            figure
+            subplot(3,1,1)
+            plot(O(1,:))
+            hold on
+            plot(testSet(1,:))
+            legend("Start","Prediction","Actual");
+            subplot(3,1,2)
+            plot(O(2,:))
+            hold on
+            plot(testSet(2,:))
+            legend("Start","Prediction","Actual");
+            subplot(3,1,3)
+            plot(O(3,:))
+            hold on
+            plot(testSet(3,:))
             legend("Start","Prediction","Actual");
         end
 
